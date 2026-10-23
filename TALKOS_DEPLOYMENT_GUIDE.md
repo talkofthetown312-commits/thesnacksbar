@@ -1,44 +1,90 @@
-# TalkOS Deployment & Release Guide
+# TalkOS Deployment, Download & Multi-Platform Release Guide
 
-## 1. Production Architecture Overview
-TalkOS utilizes a robust React + Vite (Web POS) architecture backed by Firebase (Firestore, Auth, Storage).
+## 1. Multi-Platform Architecture Overview
+TalkOS uses a single authoritative ERP codebase (React + TypeScript + Express + Firebase Firestore `ai-studio-talkosarchitectu-438c4707-59bb-4b28-aa84-26b8ca15c574`) packaged natively across:
+1. **Windows 10/11 Desktop** — Electron NSIS Installer (`.exe`), Portable (`.exe`), and Standalone PWA
+2. **macOS Desktop (Apple Silicon & Intel)** — Electron Disk Image (`.dmg`), `.zip`, and Standalone PWA
+3. **Linux Desktop** — Universal `.AppImage`, Debian/Ubuntu package (`.deb`), and Standalone PWA
+4. **Android Smartphones, Tablets & POS Terminals** — Native Capacitor `.apk`, Google Play `.aab`, and Mobile PWA
+5. **iOS & iPadOS** — Native Capacitor Xcode Archive (`.ipa`) and Safari Home Screen Standalone App
 
-### Repositories & Clients:
-- **Core Platform (This Repository):** Enterprise Web POS and ERP Platform (React/TypeScript).
-- **Mobile Environments:** Android APK/AAB and iOS builds should wrap this responsive web application using Capacitor or React Native Webviews for a unified codebase, or consume the same Firestore backend using native Flutter implementations.
+---
 
-## 2. CI/CD Pipeline (GitHub Actions)
-The configured workflow `.github/workflows/production-release.yml` automates:
-1. **Testing & Linting:** `npm run lint` guarantees zero analyzer warnings and type safety.
-2. **Build:** Vite performs Tree Shaking, Minification, and Code Splitting (`npm run build`).
-3. **Deployment:** Pushes the optimized `/dist` folder to Firebase Hosting.
+## 2. Option A: Instant 1-Click Installation (No Build Required)
+Open the running application URL on any device or click **Get Apps** in the top navigation bar:
 
-## 3. Security Hardening
-- **Firestore Rules (`firestore.rules`):** Strong RBAC implemented. Only Owners/Admins can edit configurations and financial records. Cashiers can only write to `/orders`.
-- **Firebase Auth:** Secures all database queries. Unauthenticated access is globally denied.
-- **Security Headers (`firebase.json`):** Strict `X-Frame-Options`, `X-XSS-Protection`, and cache-control headers prevent clickjacking and XSS.
+- **Windows / macOS / Linux (Chrome, Edge, Brave):**
+  1. Click **Get Apps → Install App Now**, or click the **Install** icon on the right side of the browser address bar.
+  2. Confirm installation to launch TalkOS in a standalone desktop window with Start Menu / Dock shortcuts and full offline IndexedDB sync.
+- **Android (Chrome):**
+  1. Open the app URL in Chrome on Android.
+  2. Tap the **Install App** banner or tap **Menu (⋮) → Install app / Add to Home screen**.
+- **iOS & iPadOS (Safari):**
+  1. Open the app URL in Safari on iPhone or iPad.
+  2. Tap the **Share** icon (square with arrow pointing up) → **Add to Home Screen** → **Add**.
 
-## 4. Performance Optimizations
-- **Build Output:** The application compiles successfully in ~12 seconds.
-- **Bundle Chunking:** Dynamic imports and Vite chunking strategies keep initial load times under 2 seconds.
-- **State Management:** Zustand removes the need for deep React Context providers, saving memory and CPU cycles on low-end POS hardware.
-- **No Infinite Loops:** The `ErrorBoundary` catches unexpected renders, and React `useEffect` hooks have been sanitized across modules.
+---
 
-## 5. India Localization Check
-- ✅ Default Currency: INR (₹)
-- ✅ Default Time: 24-hour format
-- ✅ Default Date: DD/MM/YYYY
-- ✅ Taxation Engine: Ready for CGST, SGST, IGST calculations.
+## 3. Option B: Local CLI Native Installer Builds
 
-## 6. Disaster Recovery & Backups
-Firebase automatically handles data replication. However, for Point of Sale data retention compliance (India FSSAI/GST guidelines):
-1. **Enable Firestore Scheduled Backups:** Use Google Cloud Console -> Firestore -> Import/Export to schedule daily bucket exports.
-2. **Data Retention:** Retain all financial records in Google Cloud Storage for 7 years minimum.
+### Prerequisites
+```bash
+npm install
+```
 
-## 7. Release Final Validation
-- [x] Compilation: `vite build` completed successfully.
-- [x] Analyzer/Lint: `tsc --noEmit` completed with zero errors.
-- [x] Routes: All modules (Auth, POS, Inventory, KDS, Admin, CRM, HR, Finance, AI, Reports) are correctly mapped in `routes.tsx` and protected by `AuthGuard`.
-- [x] Missing Dependencies: None. Clean `npm ci` succeeds.
+### 1. Windows Desktop (`.exe` NSIS Installer & Portable)
+```bash
+npm run build:win
+```
+- **Output:** `release/TalkOS-Windows-2.4.0.exe`
 
-**STATUS: READY FOR PRODUCTION DEPLOYMENT**
+### 2. macOS Desktop (`.dmg` & `.zip`)
+```bash
+npm run build:mac
+```
+- **Output:** `release/TalkOS-macOS-2.4.0.dmg` and `release/TalkOS-macOS-2.4.0.zip`
+
+### 3. Linux Desktop (`.AppImage` & `.deb`)
+```bash
+npm run build:linux
+```
+- **Output:** `release/TalkOS-Linux-2.4.0.AppImage` and `release/TalkOS-Linux-2.4.0.deb`
+- **Install `.deb` on Ubuntu/Debian:** `sudo dpkg -i release/TalkOS-Linux-2.4.0.deb`
+- **Run `.AppImage`:** `chmod +x release/TalkOS-Linux-2.4.0.AppImage && ./release/TalkOS-Linux-2.4.0.AppImage`
+
+### 4. Android Native Package (`.apk` & `.aab`)
+```bash
+# Compiles web assets, auto-initializes android/ if missing, and syncs Capacitor plugins:
+npm run build:android
+
+# Build installable Debug APK:
+cd android && ./gradlew assembleDebug
+# Output: android/app/build/outputs/apk/debug/app-debug.apk
+
+# Build Production Release APK & Google Play AAB:
+cd android && ./gradlew assembleRelease bundleRelease
+```
+
+### 5. iOS & iPadOS Native App (`.ipa` via Xcode on macOS)
+```bash
+# Compiles web assets, auto-initializes ios/ if missing, and syncs Capacitor plugins:
+npm run build:ios
+
+# Open the workspace in Xcode:
+npm run cap:ios
+```
+- In Xcode, select your **Team** under **Signing & Capabilities**, choose **Any iOS Device (arm64)**, and click **Product → Archive** to distribute to TestFlight, the App Store, or connected iPads/iPhones.
+
+---
+
+## 4. Option C: Automated Cloud Builds via GitHub Actions
+The workflow `.github/workflows/production-release.yml` automatically builds all platforms in parallel on GitHub-hosted Windows, macOS, and Ubuntu runners:
+
+1. Push a release tag (`git tag v2.4.0 && git push origin v2.4.0`) or click **Run workflow** under **Actions → TalkOS Multi-Platform Production Release**.
+2. Once completed, download the compiled installers directly from the workflow run's **Artifacts** section:
+   - `talkos-windows-exe` (`TalkOS-Windows-2.4.0.exe`)
+   - `talkos-macos-dmg` (`TalkOS-macOS-2.4.0.dmg` & `.zip`)
+   - `talkos-linux-appimage-deb` (`TalkOS-Linux-2.4.0.AppImage` & `.deb`)
+   - `talkos-android-apk-aab` (`app-debug.apk`, `app-release-unsigned.apk`, `app-release.aab`)
+   - `talkos-ios-xcode-project` (Synced `ios/` Xcode project ready for signing)
+   - `talkos-web-pwa` (Production web & PWA bundle)

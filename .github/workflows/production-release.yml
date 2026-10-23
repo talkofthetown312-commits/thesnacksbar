@@ -33,9 +33,14 @@ jobs:
       - name: Build Web & PWA Bundle
         run: npm run build
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || secrets.FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || secrets.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_FIRESTORE_DATABASE_ID: ${{ secrets.VITE_FIRESTORE_DATABASE_ID }}
           NODE_ENV: production
 
       - name: Archive Web & PWA Artifact
@@ -90,9 +95,9 @@ jobs:
             release/
             dist-electron/
 
-  # 3. Android Signed APK & AAB Release Pipeline
+  # 3. Android APK & AAB Release Pipeline (Auto-scaffolds android/ if missing)
   release-android:
-    name: Build Android Signed APK & AAB
+    name: Build Android APK & AAB
     needs: [release-web]
     runs-on: ubuntu-latest
     steps:
@@ -111,17 +116,16 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install Dependencies & Build Web Assets
+      - name: Install Dependencies & Build Native Android Assets
         run: |
           npm ci
-          npm run build:pwa
+          npm run build:android
 
-      - name: Sync Capacitor Android Shell & Assemble APK/AAB
+      - name: Assemble Android APK & AAB Packages
         run: |
-          if [ -d android ]; then
-            npx cap sync android
-            cd android && ./gradlew assembleRelease bundleRelease --no-daemon
-          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease bundleRelease --no-daemon
 
       - name: Archive Android APK & AAB Artifacts
         if: always()
@@ -133,7 +137,7 @@ jobs:
             android/app/build/outputs/apk/**/*.apk
             android/app/build/outputs/bundle/**/*.aab
 
-  # 4. iOS Capacitor Xcode Project Sync
+  # 4. iOS Capacitor Xcode Project Sync & Archive (Auto-scaffolds ios/ if missing)
   release-ios:
     name: Prepare iOS Xcode Project
     needs: [release-web]
@@ -148,13 +152,18 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install Dependencies & Build Web Assets
+      - name: Install Dependencies & Sync Capacitor iOS Project
         run: |
           npm ci
-          npm run build:pwa
+          npm run build:ios
 
-      - name: Sync Capacitor iOS Project
-        run: |
-          if [ -d ios ]; then
-            npx cap sync ios
-          fi
+      - name: Archive iOS Xcode Project Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talkos-ios-xcode-project
+          if-no-files-found: ignore
+          path: |
+            ios/
+            capacitor.config.ts
+
