@@ -15,6 +15,7 @@ import { validateCheckout } from '../services/checkoutValidation';
 import { inventoryService } from '../../inventory/services/inventoryService';
 import { manufacturingService } from '../../manufacturing/services/manufacturingService';
 import { kdsService } from '../../kds/services/kdsService';
+import { financeService } from '../../finance/services/financeService';
 
 interface PosState {
   products: Product[];
@@ -358,11 +359,12 @@ export const usePosStore = create<PosState>((set, get) => ({
             if (!recipe) stockWarnings.push(`${item.name}: recipe missing`);
             if (recipe) {
               const baseYield = recipe.yieldQuantity || 1;
-              const ratio = item.quantity / baseYield;
+              const portionMultiplier = item.size === 'Small' ? 0.65 : item.size === 'Large' ? 1.35 : 1.0;
+              const ratio = (item.quantity * portionMultiplier) / baseYield;
               
               for (const [ingredientIndex, ing] of recipe.ingredients.entries()) {
                 if (ing.inventoryItemId) {
-                  const qtyToDeduct = ing.quantity * ratio;
+                  const qtyToDeduct = Math.round(ing.quantity * ratio * 10000) / 10000;
                   await inventoryService.recordTransaction({
                     idempotencyKey: `sale_${order.id}_${cartIndex}_${ingredientIndex}`,
                     itemId: ing.inventoryItemId,
@@ -402,13 +404,13 @@ export const usePosStore = create<PosState>((set, get) => ({
               console.warn('Combo component recipe missing; inventory not deducted:', productId);
               continue;
             }
-            const portionScale = componentSize === 'Small' ? 0.35 :
-              componentSize === 'Medium' ? 0.60 : 1;
+            const portionScale = componentSize === 'Small' ? 0.65 :
+              componentSize === 'Medium' ? 1.0 : 1.0;
             const units = (comp.quantity || 1) * item.quantity;
             const yieldQty = recipe.yieldQuantity || 1;
             for (const [ingredientIndex, ingredient] of recipe.ingredients.entries()) {
               if (!ingredient.inventoryItemId) continue;
-              const qty = ingredient.quantity * units * portionScale / yieldQty;
+              const qty = Math.round(((ingredient.quantity * units * portionScale) / yieldQty) * 10000) / 10000;
               await inventoryService.recordTransaction({
                 idempotencyKey: `combo_${order.id}_${cartIndex}_${componentIndex}_${ingredientIndex}`,
                 itemId: ingredient.inventoryItemId,
@@ -458,6 +460,14 @@ export const usePosStore = create<PosState>((set, get) => ({
         console.error('Paid order needs manual kitchen attention:', order.orderNumber, kdsErr);
         kitchenWarning = `Order ${order.orderNumber} was saved and paid, but its kitchen ticket was NOT confirmed. Notify the kitchen manually and retry ticket dispatch before preparing another bill.`;
       }
+
+      // 3. Record double-entry journal in Finance ledger
+      await financeService.recordPosSaleJournal({
+        ...order,
+        paymentMethod: order.paymentMethod || method || 'CASH'
+      }).catch(finErr => {
+        console.warn('Could not post POS sale journal to Finance:', finErr);
+      });
 
       // Update order history
       const updatedHistory = [order, ...get().ordersHistory];

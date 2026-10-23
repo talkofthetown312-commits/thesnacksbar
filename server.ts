@@ -43,6 +43,9 @@ async function startServer() {
       }
 
       const adminAuth = getAdminAuthService();
+      if (!adminAuth) {
+        return res.status(503).json({ error: "Firebase Admin Auth service is not configured on this server" });
+      }
       // Verify the token
       const decodedToken = await adminAuth.verifyIdToken(idToken);
       
@@ -50,8 +53,11 @@ async function startServer() {
       
       // Optionally fetch user profile from Firestore
       const adminDb = getAdminFirestoreService();
-      const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
-      const userData = userDoc.exists ? userDoc.data() : null;
+      let userData = null;
+      if (adminDb) {
+        const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+        userData = userDoc.exists ? userDoc.data() : null;
+      }
 
       res.json({
         status: "success",
@@ -83,7 +89,7 @@ async function startServer() {
   const serverOrders = new Map<string, any>();
   const serverTickets = new Map<string, any>();
 
-  // Configured Aggregator Channels
+  // Configured Aggregator Channels (restarted with 0 fictional orders/revenue)
   const aggregatorChannels = [
     {
       id: "ubereats",
@@ -96,8 +102,8 @@ async function startServer() {
       markupPercentage: 15,
       commissionPercentage: 25,
       status: "connected",
-      ordersToday: 18,
-      revenueToday: 7420
+      ordersToday: 0,
+      revenueToday: 0
     },
     {
       id: "doordash",
@@ -110,8 +116,8 @@ async function startServer() {
       markupPercentage: 15,
       commissionPercentage: 22,
       status: "connected",
-      ordersToday: 12,
-      revenueToday: 5190
+      ordersToday: 0,
+      revenueToday: 0
     },
     {
       id: "zomato",
@@ -124,8 +130,8 @@ async function startServer() {
       markupPercentage: 12,
       commissionPercentage: 20,
       status: "connected",
-      ordersToday: 24,
-      revenueToday: 10450
+      ordersToday: 0,
+      revenueToday: 0
     },
     {
       id: "swiggy",
@@ -138,8 +144,8 @@ async function startServer() {
       markupPercentage: 12,
       commissionPercentage: 20,
       status: "connected",
-      ordersToday: 29,
-      revenueToday: 12890
+      ordersToday: 0,
+      revenueToday: 0
     },
     {
       id: "native_kiosk",
@@ -152,8 +158,8 @@ async function startServer() {
       markupPercentage: 0,
       commissionPercentage: 0,
       status: "active",
-      ordersToday: 35,
-      revenueToday: 14200
+      ordersToday: 0,
+      revenueToday: 0
     },
     {
       id: "table_qr",
@@ -166,10 +172,58 @@ async function startServer() {
       markupPercentage: 0,
       commissionPercentage: 0,
       status: "active",
-      ordersToday: 42,
-      revenueToday: 18950
+      ordersToday: 0,
+      revenueToday: 0
     }
   ];
+
+  // Authoritative Server-Side Sync Relay for PIN-authenticated terminals
+  const serverCollections = new Map<string, Map<string, any>>();
+  app.post("/api/sync/mutation", async (req, res) => {
+    try {
+      const { collection, docId, operation, payload } = req.body || {};
+      if (!collection || !docId || !operation) {
+        return res.status(400).json({ error: "collection, docId, and operation are required" });
+      }
+      if (!serverCollections.has(collection)) {
+        serverCollections.set(collection, new Map());
+      }
+      const colMap = serverCollections.get(collection)!;
+      if (operation === "DELETE") {
+        colMap.delete(docId);
+      } else {
+        const existing = colMap.get(docId) || {};
+        colMap.set(docId, { ...existing, ...(payload || {}), id: docId });
+      }
+
+      if (collection === "pos_orders" && payload) {
+        serverOrders.set(docId, { ...(serverOrders.get(docId) || {}), ...payload, id: docId });
+      } else if (collection === "tickets" && payload) {
+        serverTickets.set(docId, { ...(serverTickets.get(docId) || {}), ...payload, id: docId });
+      }
+
+      // Opportunistic Firebase Admin write when service account is configured
+      let cloudSynced = false;
+      try {
+        const adminDb = getAdminFirestoreService();
+        if (adminDb) {
+          const ref = adminDb.collection(collection).doc(docId);
+          if (operation === "DELETE") {
+            await ref.delete();
+          } else {
+            await ref.set({ ...(payload || {}), id: docId }, { merge: true });
+          }
+          cloudSynced = true;
+        }
+      } catch {
+        // Firestore Admin credentials not present; local server state remains authoritative
+      }
+
+      res.json({ success: true, collection, docId, operation, cloudSynced });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Sync mutation failed" });
+    }
+  });
 
   // 1. Omnichannel Order Ingestion Webhook (for UberEats, DoorDash, Zomato, Swiggy)
   app.post("/api/integrations/order-webhook", async (req, res) => {

@@ -63,15 +63,7 @@ export function PurchasingPage() {
           {activeTab === 'dashboard' && <PurchasingDashboard />}
           {activeTab === 'suppliers' && <SupplierList />}
           {activeTab === 'pos' && <PurchaseOrdersList />}
-          {activeTab === 'grn' && (
-            <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/50">
-              <Truck className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Goods Receiving Note (GRN)</h3>
-              <p className="text-slate-500 max-w-md">
-                Select a Purchase Order to receive goods or scan a delivery barcode to automatically match items.
-              </p>
-            </div>
-          )}
+          {activeTab === 'grn' && <PurchaseOrdersList />}
         </div>
       )}
     </div>

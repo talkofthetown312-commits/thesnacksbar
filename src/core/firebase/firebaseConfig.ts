@@ -1,32 +1,83 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  memoryLocalCache,
+  Firestore,
+  doc,
+  getDocFromServer
+} from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import appletConfig from '../../../firebase-applet-config.json';
 export { OperationType, handleFirestoreError } from './firestoreErrorHandler';
 export type { FirestoreErrorInfo } from './firestoreErrorHandler';
 
-const resolvedConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId || '',
+const envMeta = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : ({} as Record<string, string>);
+
+export const resolvedConfig = {
+  apiKey: envMeta.VITE_FIREBASE_API_KEY || appletConfig.apiKey,
+  authDomain: envMeta.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain,
+  projectId: envMeta.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId,
+  storageBucket: envMeta.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket,
+  messagingSenderId: envMeta.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId,
+  appId: envMeta.VITE_FIREBASE_APP_ID || appletConfig.appId,
+  measurementId: envMeta.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId || '',
 };
 
-const databaseId =
-  import.meta.env.VITE_FIREBASE_DATABASE_ID ||
+export const databaseId =
+  envMeta.VITE_FIREBASE_DATABASE_ID ||
   appletConfig.firestoreDatabaseId ||
   'ai-studio-talkosarchitectu-438c4707-59bb-4b28-aa84-26b8ca15c574';
 
-// Initialize Firebase App
-export const app = getApps().length > 0 ? getApp() : initializeApp(resolvedConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app, databaseId);
-export const storage = getStorage(app);
+function createResilientFirebaseApp(): FirebaseApp {
+  try {
+    return getApps().length > 0 ? getApp() : initializeApp(resolvedConfig);
+  } catch (err) {
+    console.warn('[TalkOS Firebase] Primary initialization fallback triggered:', err);
+    return getApps()[0] || initializeApp(appletConfig);
+  }
+}
+
+function createResilientFirestore(firebaseApp: FirebaseApp): Firestore {
+  try {
+    if (typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined') {
+      return initializeFirestore(
+        firebaseApp,
+        {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager()
+          }),
+          ignoreUndefinedProperties: true
+        },
+        databaseId
+      );
+    }
+  } catch {
+    // Already initialized or IndexedDB unavailable (e.g. Node/Vitest or restricted iframe)
+  }
+
+  try {
+    return initializeFirestore(
+      firebaseApp,
+      {
+        localCache: memoryLocalCache(),
+        ignoreUndefinedProperties: true
+      },
+      databaseId
+    );
+  } catch {
+    return getFirestore(firebaseApp, databaseId);
+  }
+}
+
+export const app: FirebaseApp = createResilientFirebaseApp();
+export const auth: Auth = getAuth(app);
+export const db: Firestore = createResilientFirestore(app);
+export const storage: FirebaseStorage = getStorage(app);
 
 let analytics: any = null;
 if (typeof window !== 'undefined' && resolvedConfig.measurementId) {
@@ -46,11 +97,25 @@ if (typeof window !== 'undefined' && resolvedConfig.measurementId) {
 }
 export { analytics };
 
-// Export standard client instances
+// Non-blocking boot connection check (never throws or interrupts offline/PIN operations)
+async function testConnection() {
+  if (typeof window === 'undefined' || !db) return;
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn('[TalkOS Firebase] Client is currently offline; operating in local-first IndexedDB mode.');
+    }
+  }
+}
+void testConnection();
+
 export default {
   app,
   auth,
   db,
   storage,
-  analytics
+  analytics,
+  resolvedConfig,
+  databaseId
 };

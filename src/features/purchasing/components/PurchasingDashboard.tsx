@@ -49,9 +49,9 @@ export function PurchasingDashboard() {
                     <p className="text-sm text-slate-500">{po.supplierName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-900 dark:text-white">${po.grandTotal.toFixed(2)}</p>
+                    <p className="font-bold text-slate-900 dark:text-white">₹{po.grandTotal.toFixed(2)}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      po.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                      po.status === 'APPROVED' || po.status === 'FULFILLED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
                       po.status === 'PENDING_APPROVAL' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
                       'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'
                     }`}>

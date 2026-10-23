@@ -8,6 +8,7 @@ export interface User {
   branchIds: string[];
   status: 'ACTIVE' | 'INACTIVE';
   lastLogin?: string;
+  pin?: string;
 }
 
 export interface Branch {
@@ -29,6 +30,9 @@ export interface SystemConfig {
   dateFormat: string;
   timeFormat: string;
   timezone: string;
+  taxRate?: number;
+  receiptFooter?: string;
+  defaultStaffPin?: string;
 }
 
 export interface AuditLog {

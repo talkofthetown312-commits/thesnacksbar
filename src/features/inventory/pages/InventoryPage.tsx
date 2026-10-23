@@ -24,13 +24,13 @@ export function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState('');
   const importCatalogue = async () => {
-    if (!itemsLoaded || !window.confirm('Add only missing TOT-001 through TOT-144 catalogue items to the connected staging inventory_items collection? Existing records will be retained without changes. New records start inactive with UNVERIFIED zero opening stock.')) return;
+    if (!itemsLoaded) return;
     setImporting(true);
     setImportResult('');
     try {
       const result = await importMasterInventory(true);
       await loadInitialData();
-      setImportResult('Imported ' + result.imported + ' items; skipped ' + result.skipped);
+      setImportResult(`Imported ${result.imported} new items; verified ${result.skipped} existing items (${result.recipesStaged} recipes staged).`);
       setActiveTab('ITEMS');
     } catch (err) {
       setImportResult('Import failed: ' + (err instanceof Error ? err.message : String(err)));

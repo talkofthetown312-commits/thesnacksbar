@@ -10,6 +10,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 16.77, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_chow_veg',
     sizes: [
       { item_id: 'prod_chow_veg', size: 'Small', price: 60, cost_price: 16.77, active: true },
       { item_id: 'prod_chow_veg', size: 'Medium', price: 80, cost_price: 22.87, active: true },
@@ -24,6 +25,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 23.44, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_chow_egg',
     sizes: [
       { item_id: 'prod_chow_egg', size: 'Small', price: 70, cost_price: 23.44, active: true },
       { item_id: 'prod_chow_egg', size: 'Medium', price: 90, cost_price: 27.46, active: true },
@@ -38,6 +40,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 26.12, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_chow_chicken',
     sizes: [
       { item_id: 'prod_chow_chicken', size: 'Small', price: 80, cost_price: 26.12, active: true },
       { item_id: 'prod_chow_chicken', size: 'Medium', price: 110, cost_price: 35.62, active: true },
@@ -52,6 +55,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 33.6, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_chow_pork',
     sizes: [
       { item_id: 'prod_chow_pork', size: 'Small', price: 80, cost_price: 33.6, active: true },
       { item_id: 'prod_chow_pork', size: 'Medium', price: 110, cost_price: 45.82, active: true },
@@ -66,6 +70,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 29.86, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_chow_mixed',
     sizes: [
       { item_id: 'prod_chow_mixed', size: 'Small', price: 100, cost_price: 29.86, active: true },
       { item_id: 'prod_chow_mixed', size: 'Medium', price: 140, cost_price: 40.72, active: true },
@@ -82,6 +87,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 15.45, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_fr_veg',
     sizes: [
       { item_id: 'prod_fr_veg', size: 'Small', price: 70, cost_price: 15.45, active: true },
       { item_id: 'prod_fr_veg', size: 'Medium', price: 90, cost_price: 21.07, active: true },
@@ -96,6 +102,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 21.76, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_fr_egg',
     sizes: [
       { item_id: 'prod_fr_egg', size: 'Small', price: 70, cost_price: 21.76, active: true },
       { item_id: 'prod_fr_egg', size: 'Medium', price: 100, cost_price: 25.49, active: true },
@@ -110,6 +117,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 24.8, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_fr_chicken',
     sizes: [
       { item_id: 'prod_fr_chicken', size: 'Small', price: 80, cost_price: 24.8, active: true },
       { item_id: 'prod_fr_chicken', size: 'Medium', price: 110, cost_price: 33.82, active: true },
@@ -124,6 +132,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 32.28, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_fr_pork',
     sizes: [
       { item_id: 'prod_fr_pork', size: 'Small', price: 90, cost_price: 32.28, active: true },
       { item_id: 'prod_fr_pork', size: 'Medium', price: 120, cost_price: 44.02, active: true },
@@ -138,6 +147,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 28.54, // Modeled estimate; confirm supplier costs and yield
+    recipeId: 'rec_fr_mixed',
     sizes: [
       { item_id: 'prod_fr_mixed', size: 'Small', price: 110, cost_price: 28.54, active: true },
       { item_id: 'prod_fr_mixed', size: 'Medium', price: 150, cost_price: 38.92, active: true },
@@ -154,6 +164,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 110,
+    recipeId: 'rec_chilly_chicken_gravy',
     sizes: [
       { item_id: 'prod_chilly_chicken_gravy', size: 'Standard', price: 260, cost_price: 110, active: true }
     ]
@@ -166,6 +177,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 105,
+    recipeId: 'rec_chilly_chicken_dry',
     sizes: [
       { item_id: 'prod_chilly_chicken_dry', size: 'Standard', price: 250, cost_price: 105, active: true }
     ]
@@ -178,6 +190,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 125,
+    recipeId: 'rec_chilly_pork_gravy',
     sizes: [
       { item_id: 'prod_chilly_pork_gravy', size: 'Standard', price: 290, cost_price: 125, active: true }
     ]
@@ -190,6 +203,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     isAvailable: true,
     active: true,
     costPrice: 120,
+    recipeId: 'rec_chilly_pork_dry',
     sizes: [
       { item_id: 'prod_chilly_pork_dry', size: 'Standard', price: 280, cost_price: 120, active: true }
     ]
@@ -203,6 +217,7 @@ export const INITIAL_MENU_ITEMS: Product[] = [
     active: true,
     costPrice: 22,
     isSubItem: true,
+    recipeId: 'rec_chilly_chicken_dry',
     sizes: [
       { item_id: 'prod_chilly_bites', size: 'Standard', price: 50, cost_price: 22, active: true }
     ]

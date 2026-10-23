@@ -9,6 +9,7 @@ interface InventoryState {
   batches: ItemBatch[];
   cycleCounts: CycleCount[];
   storageLocations: StorageLocation[];
+  transactions: StockTransaction[];
   loading: boolean;
   error: string | null;
   itemsLoaded: boolean;
@@ -26,31 +27,33 @@ interface InventoryState {
   updateCycleCount: (id: string, data: Partial<CycleCount>) => Promise<void>;
 }
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
+export const useInventoryStore = create<InventoryState>((set) => ({
   items: [],
   categories: [],
   warehouses: [],
   batches: [],
   cycleCounts: [],
   storageLocations: [],
+  transactions: [],
   loading: false,
   error: null,
   itemsLoaded: false,
-  
+
   loadInitialData: async () => {
     set({ loading: true, error: null, itemsLoaded: false });
-    // Load each collection independently: a missing warehouse, category or
-    // manager-only resource must not hide inventory items that were retrieved.
     const sources = [
       inventoryService.getItems(),
       inventoryService.getCategories(),
       inventoryService.getWarehouses(),
       inventoryService.getBatches(),
       inventoryService.getCycleCounts(),
-      inventoryService.getStorageLocations()
+      inventoryService.getStorageLocations(),
+      typeof inventoryService.getTransactions === 'function'
+        ? inventoryService.getTransactions()
+        : Promise.resolve([] as StockTransaction[])
     ] as const;
     const results = await Promise.allSettled(sources);
-    const failedNames = ['inventory items', 'categories', 'warehouses', 'batches', 'cycle counts', 'storage locations'];
+    const failedNames = ['inventory items', 'categories', 'warehouses', 'batches', 'cycle counts', 'storage locations', 'transactions'];
     const errors = results.flatMap((result, index) =>
       result.status === 'rejected'
         ? [failedNames[index] + ': ' + (result.reason instanceof Error ? result.reason.message : String(result.reason))]
@@ -58,7 +61,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     );
     const valueOrEmpty = <T,>(index: number): T[] => {
       const result = results[index];
-      return result.status === 'fulfilled' ? result.value as T[] : [];
+      return result.status === 'fulfilled' ? (result.value as T[]) : [];
     };
     set({
       items: valueOrEmpty<InventoryItem>(0),
@@ -67,6 +70,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       batches: valueOrEmpty<ItemBatch>(3),
       cycleCounts: valueOrEmpty<CycleCount>(4),
       storageLocations: valueOrEmpty<StorageLocation>(5),
+      transactions: valueOrEmpty<StockTransaction>(6),
       itemsLoaded: results[0].status === 'fulfilled',
       error: errors.length ? 'Could not load ' + errors.join('; ') : null,
       loading: false
@@ -117,7 +121,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     try {
       await inventoryService.updateItem(id, data);
       set((state) => ({
-        items: state.items.map(i => i.id === id ? { ...i, ...data, lastUpdated: new Date().toISOString() } : i)
+        items: state.items.map(i => (i.id === id ? { ...i, ...data, lastUpdated: new Date().toISOString() } : i))
       }));
     } catch (err: any) {
       set({ error: err.message });
@@ -151,7 +155,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     try {
       await inventoryService.updateBatch(id, data);
       set((state) => ({
-        batches: state.batches.map(b => b.id === id ? { ...b, ...data } : b)
+        batches: state.batches.map(b => (b.id === id ? { ...b, ...data } : b))
       }));
     } catch (err: any) {
       set({ error: err.message });
@@ -173,7 +177,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     try {
       await inventoryService.updateCycleCount(id, data);
       set((state) => ({
-        cycleCounts: state.cycleCounts.map(c => c.id === id ? { ...c, ...data } : c)
+        cycleCounts: state.cycleCounts.map(c => (c.id === id ? { ...c, ...data } : c))
       }));
     } catch (err: any) {
       set({ error: err.message });
@@ -184,12 +188,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   recordTransaction: async (txn) => {
     try {
       await inventoryService.recordTransaction(txn);
-      // Refresh items and batches to get updated stock and valuations
-      const [items, batches] = await Promise.all([
+      const [items, batches, transactions] = await Promise.all([
         inventoryService.getItems(),
-        inventoryService.getBatches()
+        inventoryService.getBatches(),
+        typeof inventoryService.getTransactions === 'function'
+          ? inventoryService.getTransactions()
+          : Promise.resolve([] as StockTransaction[])
       ]);
-      set({ items, batches });
+      set({ items, batches, transactions });
     } catch (err: any) {
       set({ error: err.message });
       throw err;

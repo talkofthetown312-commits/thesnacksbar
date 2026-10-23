@@ -11,8 +11,21 @@ extraMetadata:
 asar: true
 win:
   icon: assets/icon.png
-  target: portable
-  artifactName: TalkOS-Windows-Staging-${version}.${ext}
+  target:
+    - portable
+    - nsis
+  artifactName: TalkOS-Windows-${version}.${ext}
+linux:
+  icon: assets/icon.png
+  category: Office
+  target:
+    - AppImage
+    - deb
+  artifactName: TalkOS-Linux-${version}.${ext}
 mac:
   icon: assets/icon.png
-  target: dmg
+  category: public.app-category.business
+  target:
+    - dmg
+    - zip
+  artifactName: TalkOS-macOS-${version}.${ext}

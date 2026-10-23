@@ -52,7 +52,7 @@ export function FinanceDashboard() {
                     <p className="text-sm text-slate-500">{txn.description}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-900 dark:text-white">${txn.totalDebit.toFixed(2)}</p>
+                    <p className="font-bold text-slate-900 dark:text-white">₹{txn.totalDebit.toFixed(2)}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       txn.status === 'POSTED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
                       txn.status === 'DRAFT' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
@@ -80,7 +80,7 @@ export function FinanceDashboard() {
                     <p className="text-sm text-slate-500">{acc.code}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-900 dark:text-white">${acc.balance.toFixed(2)}</p>
+                    <p className="font-bold text-slate-900 dark:text-white">₹{acc.balance.toFixed(2)}</p>
                   </div>
                 </div>
               ))}

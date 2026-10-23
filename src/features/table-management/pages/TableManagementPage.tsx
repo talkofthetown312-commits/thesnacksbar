@@ -9,11 +9,19 @@ import { TableQrModal } from '../components/TableQrModal';
 type SidebarView = 'NONE' | 'RESERVATIONS' | 'WAITLIST';
 
 export function TableManagementPage() {
-  const { floors, tables, loadData, updateTableStatus, updateTablePosition } = useTableStore();
+  const { floors, tables, loadData, updateTableStatus, updateTablePosition, addFloor, addTable } = useTableStore();
   const [activeFloorId, setActiveFloorId] = useState<string>('');
   const [sidebarView, setSidebarView] = useState<SidebarView>('NONE');
   const [selectedQrTable, setSelectedQrTable] = useState<Table | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
+
+  const [showFloorModal, setShowFloorModal] = useState(false);
+  const [newFloorName, setNewFloorName] = useState('');
+
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState('');
+  const [newTableCapacity, setNewTableCapacity] = useState('4');
+  const [newTableShape, setNewTableShape] = useState<'SQUARE' | 'ROUND' | 'RECTANGLE'>('SQUARE');
   
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -52,6 +60,39 @@ export function TableManagementPage() {
     setDraggedTableId(null);
   };
 
+  const handleCreateFloor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFloorName.trim()) return;
+    await addFloor({
+      name: newFloorName.trim(),
+      zone: 'Main',
+      isActive: true,
+      order: floors.length + 1
+    });
+    setNewFloorName('');
+    setShowFloorModal(false);
+  };
+
+  const handleCreateTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTableNumber.trim() || !activeFloorId) return;
+    const idx = activeTables.length;
+    await addTable({
+      floorId: activeFloorId,
+      tableNumber: newTableNumber.trim().toUpperCase(),
+      capacity: Number(newTableCapacity) || 4,
+      shape: newTableShape,
+      status: 'AVAILABLE',
+      positionX: 80 + (idx % 4) * 160,
+      positionY: 80 + Math.floor(idx / 4) * 140,
+      width: newTableShape === 'RECTANGLE' ? 140 : 100,
+      height: 100,
+      locked: false
+    });
+    setNewTableNumber('');
+    setShowTableModal(false);
+  };
+
   const getStatusColor = (status: TableStatus) => {
     switch(status) {
       case 'AVAILABLE': return 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-400 dark:text-green-400';
@@ -75,13 +116,13 @@ export function TableManagementPage() {
               setSelectedQrTable(activeTables[0] || null);
               setIsQrModalOpen(true);
             }}
-            className="px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
           >
             <QrCode className="w-4 h-4 mr-2" /> QR Table Stands
           </button>
           <button 
             onClick={() => setSidebarView(sidebarView === 'WAITLIST' ? 'NONE' : 'WAITLIST')}
-            className={`px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-medium ${
+            className={`px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-medium cursor-pointer ${
               sidebarView === 'WAITLIST' 
                 ? 'bg-amber-600 text-white' 
                 : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -91,7 +132,7 @@ export function TableManagementPage() {
           </button>
           <button 
             onClick={() => setSidebarView(sidebarView === 'RESERVATIONS' ? 'NONE' : 'RESERVATIONS')}
-            className={`px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-medium ${
+            className={`px-4 py-2 rounded-md flex items-center transition-colors shadow-sm text-sm font-medium cursor-pointer ${
               sidebarView === 'RESERVATIONS'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -111,7 +152,7 @@ export function TableManagementPage() {
               <button
                 key={floor.id}
                 onClick={() => setActiveFloorId(floor.id)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors shrink-0 ${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors shrink-0 cursor-pointer ${
                   activeFloorId === floor.id 
                     ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm'
@@ -120,7 +161,10 @@ export function TableManagementPage() {
                 {floor.name}
               </button>
             ))}
-            <button className="px-4 py-2 rounded-md text-sm font-medium text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center transition-colors shrink-0">
+            <button
+              onClick={() => setShowFloorModal(true)}
+              className="px-4 py-2 rounded-md text-sm font-medium text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center transition-colors shrink-0 cursor-pointer"
+            >
               <Plus className="w-4 h-4 mr-1" /> Add Floor
             </button>
           </div>
@@ -185,8 +229,12 @@ export function TableManagementPage() {
             
             {/* Controls */}
             <div className="absolute top-4 right-4 flex flex-col gap-2">
-              <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors tooltip" title="Add Table">
-                <Armchair className="w-5 h-5" />
+              <button
+                onClick={() => setShowTableModal(true)}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg shadow-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                title="Add Table"
+              >
+                <Armchair className="w-4 h-4" /> + Add Table
               </button>
             </div>
           </div>
@@ -210,6 +258,100 @@ export function TableManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Add Floor Modal */}
+      {showFloorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-slate-900 dark:text-white">Add Floor Section</h3>
+              <button onClick={() => setShowFloorModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateFloor} className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Floor Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newFloorName}
+                  onChange={e => setNewFloorName(e.target.value)}
+                  placeholder="e.g. Rooftop Lounge"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowFloorModal(false)} className="px-4 py-2 text-sm text-slate-600">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                  Add Floor
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Table Modal */}
+      {showTableModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-slate-900 dark:text-white">Add Table</h3>
+              <button onClick={() => setShowTableModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateTable} className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Table Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={newTableNumber}
+                  onChange={e => setNewTableNumber(e.target.value)}
+                  placeholder="e.g. T9"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Seats</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newTableCapacity}
+                    onChange={e => setNewTableCapacity(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Shape</label>
+                  <select
+                    value={newTableShape}
+                    onChange={e => setNewTableShape(e.target.value as any)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value="SQUARE">Square</option>
+                    <option value="ROUND">Round</option>
+                    <option value="RECTANGLE">Rectangle</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowTableModal(false)} className="px-4 py-2 text-sm text-slate-600">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                  Add Table
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Table QR Stand Generator Modal */}
       <TableQrModal 

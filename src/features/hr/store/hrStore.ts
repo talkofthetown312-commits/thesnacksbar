@@ -11,6 +11,7 @@ interface HrState {
   error: string | null;
 
   loadAll: () => Promise<void>;
+  addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
 }
 
 export const useHrStore = create<HrState>((set) => ({
@@ -41,4 +42,14 @@ export const useHrStore = create<HrState>((set) => ({
       set({ error: e.message, loading: false });
     }
   },
+
+  addEmployee: async (emp) => {
+    try {
+      const created = await hrService.addEmployee(emp);
+      set(state => ({ employees: [created, ...state.employees] }));
+    } catch (e: any) {
+      set({ error: e.message });
+      throw e;
+    }
+  }
 }));

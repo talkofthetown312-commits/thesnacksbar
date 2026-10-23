@@ -43,27 +43,31 @@ export function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {customers.slice(0, 5).map(customer => (
-                <div key={customer.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">
-                      {customer.firstName} {customer.lastName}
-                    </p>
-                    <p className="text-sm text-slate-500">{customer.email}</p>
+              {customers.length === 0 ? (
+                <p className="text-sm text-slate-500">No customers registered yet.</p>
+              ) : (
+                customers.slice(0, 5).map(customer => (
+                  <div key={customer.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-white">
+                        {customer.firstName} {customer.lastName}
+                      </p>
+                      <p className="text-sm text-slate-500">{customer.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        customer.tier === 'PLATINUM' ? 'bg-slate-800 text-slate-200 dark:bg-slate-200 dark:text-slate-800' :
+                        customer.tier === 'GOLD' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
+                        customer.tier === 'SILVER' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-300' :
+                        'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                      }`}>
+                        {customer.tier}
+                      </span>
+                      <p className="text-xs text-slate-500 mt-1">{customer.loyaltyPoints} pts</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ₹{
-                      customer.tier === 'PLATINUM' ? 'bg-slate-800 text-slate-200 dark:bg-slate-200 dark:text-slate-800' :
-                      customer.tier === 'GOLD' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
-                      customer.tier === 'SILVER' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-300' :
-                      'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                    }`}>
-                      {customer.tier}
-                    </span>
-                    <p className="text-xs text-slate-500 mt-1">{customer.loyaltyPoints} pts</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -74,20 +78,24 @@ export function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {promotions.filter(p => p.isActive).map(promo => (
-                <div key={promo.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">{promo.name}</p>
-                    <p className="text-sm font-mono text-indigo-600 dark:text-indigo-400">{promo.code}</p>
+              {promotions.filter(p => p.isActive).length === 0 ? (
+                <p className="text-sm text-slate-500">No active promotions configured.</p>
+              ) : (
+                promotions.filter(p => p.isActive).map(promo => (
+                  <div key={promo.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-white">{promo.name}</p>
+                      <p className="text-sm font-mono text-indigo-600 dark:text-indigo-400">{promo.code}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900 dark:text-white">
+                        {promo.type === 'PERCENTAGE' ? `${promo.value}% OFF` : `₹${promo.value} OFF`}
+                      </p>
+                      <p className="text-xs text-slate-500">Used {promo.timesUsed} times</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-900 dark:text-white">
-                      {promo.type === 'PERCENTAGE' ? `₹{promo.value}% OFF` : `₹₹{promo.value} OFF`}
-                    </p>
-                    <p className="text-xs text-slate-500">Used {promo.timesUsed} times</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

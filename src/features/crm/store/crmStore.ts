@@ -11,6 +11,7 @@ interface CrmState {
   loadCustomers: () => Promise<void>;
   loadPromotions: () => Promise<void>;
   addCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'loyaltyPoints' | 'tier' | 'status' | 'totalVisits' | 'totalSpent'>) => Promise<void>;
+  addPromotion: (promoData: Omit<Promotion, 'id' | 'timesUsed'>) => Promise<void>;
 }
 
 export const useCrmStore = create<CrmState>((set) => ({
@@ -45,6 +46,19 @@ export const useCrmStore = create<CrmState>((set) => ({
       const newCust = await crmService.addCustomer(customerData);
       set(state => ({
         customers: [newCust, ...state.customers],
+        loading: false
+      }));
+    } catch (e: any) {
+      set({ error: e.message, loading: false });
+    }
+  },
+
+  addPromotion: async (promoData) => {
+    set({ loading: true, error: null });
+    try {
+      const newPromo = await crmService.addPromotion(promoData);
+      set(state => ({
+        promotions: [newPromo, ...state.promotions],
         loading: false
       }));
     } catch (e: any) {

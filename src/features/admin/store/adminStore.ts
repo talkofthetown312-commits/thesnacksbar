@@ -12,7 +12,10 @@ interface AdminState {
 
   loadAdminData: () => Promise<void>;
   addUser: (userData: Omit<User, 'id'> & { id?: string }) => Promise<void>;
+  updateUser: (id: string, updates: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  addBranch: (branchData: Omit<Branch, 'id'>) => Promise<void>;
+  updateSystemConfig: (config: Partial<SystemConfig>) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -42,9 +45,21 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const newUser = await adminService.addUser(userData);
-      set({ users: [newUser, ...get().users], loading: false });
+      set({ users: [newUser, ...get().users.filter(u => u.id !== newUser.id)], loading: false });
     } catch (e: any) {
       set({ error: e.message, loading: false });
+      throw e;
+    }
+  },
+
+  updateUser: async (id, updates) => {
+    try {
+      await adminService.updateUser(id, updates);
+      set({
+        users: get().users.map(u => (u.id === id ? { ...u, ...updates } : u))
+      });
+    } catch (e: any) {
+      set({ error: e.message });
       throw e;
     }
   },
@@ -56,6 +71,26 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       set({ users: get().users.filter(u => u.id !== id), loading: false });
     } catch (e: any) {
       set({ error: e.message, loading: false });
+      throw e;
+    }
+  },
+
+  addBranch: async (branchData) => {
+    try {
+      const created = await adminService.addBranch(branchData);
+      set({ branches: [...get().branches, created] });
+    } catch (e: any) {
+      set({ error: e.message });
+      throw e;
+    }
+  },
+
+  updateSystemConfig: async (updates) => {
+    try {
+      const next = await adminService.updateSystemConfig(updates);
+      set({ config: next });
+    } catch (e: any) {
+      set({ error: e.message });
       throw e;
     }
   }

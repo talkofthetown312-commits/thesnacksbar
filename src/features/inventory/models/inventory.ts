@@ -77,6 +77,8 @@ export interface InventoryItem {
   shelfLifeDays?: number;
   status: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
   currentStock: number;
+  stockVerified?: boolean;
+  categoryName?: string;
   valuationMethod: 'FIFO' | 'FEFO' | 'WEIGHTED_AVERAGE';
   lastUpdated: string;
   createdAt: string;
@@ -89,6 +91,7 @@ export interface StockTransaction {
   type: 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'ADJUSTMENT' | 'OPENING' | 'CLOSING' | 'PHYSICAL_VERIFICATION' | 'DAMAGE' | 'WASTAGE' | 'EXPIRY' | 'RETURN';
   quantity: number;
   referenceId?: string; // e.g., PO ID or Order ID
+  reason?: string;
   notes?: string;
   fromWarehouseId?: string;
   toWarehouseId?: string;

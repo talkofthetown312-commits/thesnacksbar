@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
-import { 
-  Menu, 
-  Search, 
-  Sun, 
-  Moon, 
-  LogOut, 
-  User as UserIcon, 
-  Settings, 
-  Cpu, 
+import React, { useState, useEffect } from 'react';
+import {
+  Menu,
+  Sun,
+  Moon,
+  LogOut,
+  Cpu,
   Banknote,
-  Smartphone
+  RefreshCw,
+  CheckCircle2,
+  CloudOff
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useAppStore } from '../../core/store/appStore';
 import { hardwareService } from '../../core/hardware/hardwareService';
 import { HardwareSettingsModal } from '../components/HardwareSettingsModal';
+import { offlineDB, SyncStatusSummary } from '../../core/offline/db';
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -27,7 +27,19 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
   const [drawerKicked, setDrawerKicked] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusSummary>({
+    pendingCount: 0,
+    lastSyncedAt: null,
+    lastError: null,
+    isSyncing: false,
+    dbInitialized: true
+  });
   const accountMenu = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = offlineDB.subscribeSyncStatus(setSyncStatus);
+    return unsub;
+  }, []);
 
   React.useEffect(() => {
     if (!isAccountMenuOpen) return;
@@ -64,6 +76,10 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
     setDrawerKicked(true);
     await hardwareService.kickCashDrawer();
     setTimeout(() => setDrawerKicked(false), 1500);
+  };
+
+  const handleManualSync = async () => {
+    await offlineDB.flushSyncQueue();
   };
 
   return (
@@ -106,13 +122,49 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
 
         {/* Right Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Sync Status Pill */}
+          <button
+            type="button"
+            onClick={handleManualSync}
+            title={
+              isOffline
+                ? 'Offline — All data saved to persistent local database'
+                : syncStatus.pendingCount > 0
+                ? `${syncStatus.pendingCount} item(s) queued for cloud sync. Click to retry.`
+                : 'Local & Cloud Storage Synchronized'
+            }
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-[#ebd5da] bg-[#fdf5f6] hover:bg-[#fee8eb] text-[11px] font-bold text-[#800000] transition-colors cursor-pointer"
+          >
+            {isOffline ? (
+              <>
+                <CloudOff className="w-3.5 h-3.5 text-amber-600" />
+                <span>Offline Local</span>
+              </>
+            ) : syncStatus.isSyncing ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#800000]" />
+                <span>Syncing…</span>
+              </>
+            ) : syncStatus.pendingCount > 0 ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
+                <span>{syncStatus.pendingCount} Queued</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Synced</span>
+              </>
+            )}
+          </button>
+
           {/* Quick Cash Drawer Kick */}
           <button
             type="button"
             onClick={handleQuickDrawerKick}
             className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer text-xs font-black ${
-              drawerKicked 
-                ? 'bg-emerald-600 text-white border-emerald-600' 
+              drawerKicked
+                ? 'bg-emerald-600 text-white border-emerald-600'
                 : 'bg-[#fdf5f6] border-[#ebd5da] text-[#800000] hover:bg-[#fee8eb]'
             }`}
             title="Open Cash Drawer (F10)"
@@ -132,15 +184,15 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
           </button>
 
           {isOffline && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#fee8eb] text-[#800000] border border-[#ebd5da]">
+            <span className="inline-flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#fee8eb] text-[#800000] border border-[#ebd5da]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#800000]"></span>
               Offline
             </span>
           )}
 
-          <button 
+          <button
             type="button"
-            onClick={toggleTheme} 
+            onClick={toggleTheme}
             className="p-2 text-[#800000] hover:bg-[#fdf5f6] rounded-xl transition-colors cursor-pointer"
             title="Toggle Theme"
           >
@@ -151,7 +203,7 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
 
           {/* User Profile dropdown */}
           <div className="relative" ref={accountMenu}>
-            <button 
+            <button
               type="button"
               aria-label="Account menu"
               aria-expanded={isAccountMenuOpen}
@@ -171,27 +223,32 @@ export function TopBar({ onMenuClick, isMenuOpen }: TopBarProps) {
                 </p>
               </div>
             </button>
-            
-            {isAccountMenuOpen && <div id="account-menu" className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-[#ebd5da] py-1 z-50">
-              <div className="px-4 py-2 border-b border-[#ebd5da] bg-[#fdf5f6]">
-                <p className="text-xs font-black text-[#800000] truncate">{profile?.displayName || 'User'}</p>
-                <p className="text-[10px] text-[#800000]/70 truncate font-semibold">{user?.email}</p>
+
+            {isAccountMenuOpen && (
+              <div id="account-menu" className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-[#ebd5da] py-1 z-50">
+                <div className="px-4 py-2 border-b border-[#ebd5da] bg-[#fdf5f6]">
+                  <p className="text-xs font-black text-[#800000] truncate">{profile?.displayName || 'User'}</p>
+                  <p className="text-[10px] text-[#800000]/70 truncate font-semibold">{user?.email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    setIsHardwareModalOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-[#800000] hover:bg-[#fdf5f6] flex items-center gap-2 font-bold cursor-pointer"
+                >
+                  <Cpu className="w-3.5 h-3.5 text-[#800000]" /> Peripherals & Printers
+                </button>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="w-full text-left px-4 py-2 text-xs text-[#800000] hover:bg-[#fee8eb] flex items-center gap-2 border-t border-[#ebd5da] font-black cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-[#800000]" /> Sign out
+                </button>
               </div>
-              <button 
-                type="button"
-                onClick={() => { setIsAccountMenuOpen(false); setIsHardwareModalOpen(true); }}
-                className="w-full text-left px-4 py-2 text-xs text-[#800000] hover:bg-[#fdf5f6] flex items-center gap-2 font-bold cursor-pointer"
-              >
-                <Cpu className="w-3.5 h-3.5 text-[#800000]" /> Peripherals & Printers
-              </button>
-              <button 
-                type="button"
-                onClick={logout} 
-                className="w-full text-left px-4 py-2 text-xs text-[#800000] hover:bg-[#fee8eb] flex items-center gap-2 border-t border-[#ebd5da] font-black cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5 text-[#800000]" /> Sign out
-              </button>
-            </div>}
+            )}
           </div>
         </div>
       </header>

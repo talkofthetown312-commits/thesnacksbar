@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../../core/firebase/firebaseConfig';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../core/auth/AuthContext';
 import { QuickActions } from '../components/QuickActions';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../shared/components/ui/Card';
 import { RefreshCw, AlertTriangle, ChefHat, Package, Receipt, Activity } from 'lucide-react';
+import { posService } from '../../pos/services/posService';
+import { kdsService } from '../../kds/services/kdsService';
+import { inventoryService } from '../../inventory/services/inventoryService';
 
 type ReadState<T> = { loading: boolean; records: T[] | null; error: string | null };
 type OrderRecord = {
@@ -58,42 +59,37 @@ export function DashboardPage() {
 
   useEffect(() => {
     let active = true;
-    if (!db) {
-      const message = 'Database connection is not configured';
-      setOrders({ loading: false, records: null, error: message });
-      setTickets({ loading: false, records: null, error: message });
-      setInventory({ loading: false, records: null, error: message });
-      return;
-    }
     setOrders(emptyState());
     setTickets(emptyState());
     setInventory(emptyState());
-    async function readRecords<T extends { id: string }>(
-      name: string, setResult: React.Dispatch<React.SetStateAction<ReadState<T>>>
-    ) {
+
+    async function loadAll() {
       try {
-        const snapshot = await getDocs(collection(db, name));
-        if (active) setResult({ loading: false, records: snapshot.docs.map(item => ({
-          ...item.data(), id: item.id
-        } as T)), error: null });
+        const [ordList, tktList, invList] = await Promise.all([
+          posService.getOrders(),
+          kdsService.getTickets(),
+          inventoryService.getItems()
+        ]);
+        if (!active) return;
+        setOrders({ loading: false, records: ordList as OrderRecord[], error: null });
+        setTickets({ loading: false, records: tktList as KitchenRecord[], error: null });
+        setInventory({ loading: false, records: invList as StockRecord[], error: null });
       } catch (error) {
-        if (active) setResult({
-          loading: false, records: null,
-          error: error instanceof Error ? error.message : 'Could not read records'
-        });
+        if (!active) return;
+        const msg = error instanceof Error ? error.message : 'Could not read records';
+        setOrders({ loading: false, records: [], error: msg });
+        setTickets({ loading: false, records: [], error: msg });
+        setInventory({ loading: false, records: [], error: msg });
       }
     }
-    void Promise.all([
-      readRecords<OrderRecord>('pos_orders', setOrders),
-      readRecords<KitchenRecord>('tickets', setTickets),
-      readRecords<StockRecord>('inventory_items', setInventory)
-    ]);
+
+    void loadAll();
     return () => { active = false; };
   }, [refreshKey]);
 
   const today = imphalDate(new Date());
   const paidToday = useMemo(() => (orders.records || []).filter(order =>
-    order.status === 'PAID' && imphalDate(order.createdAt) === today
+    (order.status === 'PAID' || order.status === 'COMPLETED') && imphalDate(order.createdAt) === today
   ), [orders.records, today]);
   const todayRevenue = paidToday.reduce((sum, order) => sum + (
     Number.isFinite(order.total) ? Number(order.total) : 0
@@ -116,7 +112,7 @@ export function DashboardPage() {
     .sort((a, b) => (dateFrom(b.createdAt)?.getTime() || 0) - (dateFrom(a.createdAt)?.getTime() || 0))
     .slice(0, 5);
 
-  const canSeeSales = ['OWNER', 'ADMIN', 'MANAGER', 'ACCOUNTANT'].some(hasRole);
+  const canSeeSales = ['OWNER', 'ADMIN', 'MANAGER', 'ACCOUNTANT', 'CASHIER'].some(hasRole);
   const canSeeKitchen = ['OWNER', 'ADMIN', 'MANAGER', 'KITCHEN'].some(hasRole);
   const canSeeInventory = ['OWNER', 'ADMIN', 'MANAGER', 'INVENTORY'].some(hasRole);
 
@@ -131,7 +127,7 @@ export function DashboardPage() {
           )}
         </div>
         <button type="button" onClick={() => setRefreshKey(key => key + 1)}
-          className="flex items-center gap-2 rounded-lg border border-[#ebd5da] bg-white px-3 py-2 text-sm font-bold">
+          className="flex items-center gap-2 rounded-lg border border-[#ebd5da] bg-white px-3 py-2 text-sm font-bold cursor-pointer">
           <RefreshCw className="h-4 w-4" /> Refresh
         </button>
       </div>
@@ -143,7 +139,7 @@ export function DashboardPage() {
             <CardContent>
               <ReadNotice state={orders} empty="No orders are recorded in this database." />
               {!orders.loading && !orders.error && (
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center mt-2">
                   <div><p className="text-xl font-bold">{money(todayRevenue)}</p><p className="text-xs text-slate-500">Paid revenue</p></div>
                   <div><p className="text-xl font-bold">{paidToday.length}</p><p className="text-xs text-slate-500">Paid orders</p></div>
                   <div><p className="text-xl font-bold">{paidToday.length ? money(todayRevenue / paidToday.length) : '—'}</p><p className="text-xs text-slate-500">Average ticket</p></div>
@@ -158,7 +154,7 @@ export function DashboardPage() {
             <CardContent>
               <ReadNotice state={tickets} empty="No kitchen tickets are recorded." />
               {!tickets.loading && !tickets.error && (
-                <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="grid grid-cols-2 gap-2 text-center mt-2">
                   <div><p className="text-2xl font-bold">{activeTickets.length}</p><p className="text-xs text-slate-500">Active tickets</p></div>
                   <div><p className="text-2xl font-bold">{overdueTickets.length}</p><p className="text-xs text-slate-500">Past target time</p></div>
                 </div>
@@ -168,7 +164,7 @@ export function DashboardPage() {
         )}
         {canSeeInventory && (
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> Verified stock alerts</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> Verified stock alerts ({inventory.records?.length || 0} master items)</CardTitle></CardHeader>
             <CardContent>
               <ReadNotice state={inventory} empty="No inventory records have been loaded." />
               {!inventory.loading && !inventory.error && (
@@ -178,7 +174,7 @@ export function DashboardPage() {
                     <p key={item.id} className="flex items-center gap-2 text-sm"><AlertTriangle className="h-4 w-4 text-amber-700" /> {item.name || item.id}: {item.currentStock} {item.unit || ''}</p>
                   ))}
                   {(inventory.records || []).some(item => item.stockVerified === false) && (
-                    <p className="text-xs text-slate-500">Unverified opening stock is excluded from alerts.</p>
+                    <p className="text-xs text-slate-500">Unverified opening stock is excluded from alerts until physical count or purchase receiving.</p>
                   )}
                 </div>
               )}
@@ -192,7 +188,7 @@ export function DashboardPage() {
             <div className="space-y-2">
               {!orders.error && recentOrders.map(order => (
                 <div key={order.id} className="flex justify-between gap-3 border-b border-[#ebd5da] py-1 text-sm">
-                  <span>{order.orderNumber || order.id} · {order.status || 'Unknown status'}</span>
+                  <span>{order.orderNumber || order.id} · {order.status || 'Unknown status'} · {money(Number(order.total || 0))}</span>
                   <span>{dateFrom(order.createdAt)?.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) || 'No date'}</span>
                 </div>
               ))}
@@ -200,7 +196,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <p className="text-xs text-slate-500">Staff attendance, task assignments and terminal connectivity are not displayed until their live data sources are connected. No example data is presented as actual operations.</p>
+      <p className="text-xs text-slate-500">Talk of the Town restarts with a clean transaction ledger and 144 preserved master inventory items. No fictional sales or demo orders are displayed.</p>
     </div>
   );
 }

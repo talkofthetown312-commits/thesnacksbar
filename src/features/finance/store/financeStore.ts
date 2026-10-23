@@ -10,6 +10,8 @@ interface FinanceState {
 
   loadAccounts: () => Promise<void>;
   loadTransactions: () => Promise<void>;
+  addAccount: (account: Omit<Account, 'id'>) => Promise<Account>;
+  createTransaction: (txn: Omit<Transaction, 'id' | 'createdAt'>) => Promise<Transaction>;
 }
 
 export const useFinanceStore = create<FinanceState>((set) => ({
@@ -37,4 +39,31 @@ export const useFinanceStore = create<FinanceState>((set) => ({
       set({ error: e.message, loading: false });
     }
   },
+
+  addAccount: async (accountData) => {
+    try {
+      const newAcc = await financeService.addAccount(accountData);
+      const accounts = await financeService.getAccounts();
+      set({ accounts });
+      return newAcc;
+    } catch (e: any) {
+      set({ error: e.message });
+      throw e;
+    }
+  },
+
+  createTransaction: async (txnData) => {
+    try {
+      const newTxn = await financeService.createTransaction(txnData);
+      const [accounts, transactions] = await Promise.all([
+        financeService.getAccounts(),
+        financeService.getTransactions()
+      ]);
+      set({ accounts, transactions });
+      return newTxn;
+    } catch (e: any) {
+      set({ error: e.message });
+      throw e;
+    }
+  }
 }));

@@ -10,7 +10,8 @@
         "category": { "type": "string" },
         "price": { "type": "number" },
         "active": { "type": "boolean" },
-        "isAvailable": { "type": "boolean" }
+        "isAvailable": { "type": "boolean" },
+        "recipeId": { "type": "string" }
       },
       "required": ["id", "name", "category", "price", "active"]
     },
@@ -27,6 +28,55 @@
         "active": { "type": "boolean" }
       },
       "required": ["item_id", "size", "price", "active"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Master inventory item (TOT-001 through TOT-144)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "unit": { "type": "string" },
+        "currentStock": { "type": "number" },
+        "reorderLevel": { "type": "number" },
+        "minimumStock": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "DISCONTINUED"] }
+      },
+      "required": ["id", "name", "categoryId", "unit", "currentStock", "status"]
+    },
+    "StockTransaction": {
+      "title": "StockTransaction",
+      "description": "Atomic inventory stock movement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemId": { "type": "string" },
+        "type": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "referenceId": { "type": "string" },
+        "date": { "type": "string" },
+        "performedBy": { "type": "string" }
+      },
+      "required": ["id", "itemId", "type", "quantity", "date"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Dish recipe and Bill of Materials (BOM)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "productId": { "type": "string" },
+        "yieldQuantity": { "type": "number" },
+        "yieldUnit": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "yieldQuantity", "yieldUnit"]
     },
     "Order": {
       "title": "Order",
@@ -90,6 +140,18 @@
     "/menu_item_sizes/{sizeId}": {
       "schema": "MenuItemSize",
       "description": "Size variants for menu items"
+    },
+    "/inventory_items/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "144 Master inventory items"
+    },
+    "/inventory_transactions/{txnId}": {
+      "schema": "StockTransaction",
+      "description": "Stock in/out/adjustment transactions"
+    },
+    "/manufacturing_recipes/{recipeId}": {
+      "schema": "Recipe",
+      "description": "Approved Talk of the Town recipes and BOMs"
     },
     "/pos_orders/{orderId}": {
       "schema": "Order",
